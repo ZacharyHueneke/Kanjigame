@@ -1,0 +1,70 @@
+import UIKit
+import AVFoundation
+import VisionKit
+
+class ViewController: UIViewController, VNDocumentCameraViewControllerDelegate {
+
+    var captureSession = AVCaptureSession()
+    var previewLayer: AVCaptureVideoPreviewLayer?
+    
+    func showVisionKit() {
+        let scannerViewController = VNDocumentCameraViewController()
+        scannerViewController.delegate = self
+        self.present(scannerViewController, animated: true)
+    }
+    
+    func showCameraPreview() {
+        // Set up the input device (the camera)
+        guard let captureDevice = AVCaptureDevice.default(for: .video) else { return }
+        guard let input = try? AVCaptureDeviceInput(device: captureDevice) else { return }
+        captureSession.addInput(input)
+        
+        // Set up the output (where the captured frames will be sent)
+        let output = AVCaptureVideoDataOutput()
+        captureSession.addOutput(output)
+        output.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
+        
+        // Set up the preview layer
+        previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        previewLayer?.frame = self.view.bounds
+        previewLayer?.videoGravity = .resizeAspectFill
+        self.view.layer.addSublayer(previewLayer!)
+        
+        // Start the capture session
+        captureSession.startRunning()
+    }
+    
+    // MARK: - VNDocumentCameraViewControllerDelegate
+    
+    func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFinishWith scan: VNDocumentCameraScan) {
+        // Handle the scanned document
+        // ...
+        // Dismiss the view controller
+        controller.dismiss(animated: true)
+    }
+    
+    func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
+        // Handle cancellation
+        controller.dismiss(animated: true)
+    }
+
+}
+
+extension ViewController: AVCaptureVideoDataOutputSampleBufferDelegate {
+    
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let pixelBuffer: CVPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        
+        let request = VNRecognizeTextRequest { (request, error) in
+            // Handle text recognition
+        }
+        
+        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
+        do {
+            try handler.perform([request])
+        } catch {
+            print(error)
+        }
+    }
+    
+}
