@@ -1,62 +1,118 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { TextInput, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-const MoveableBox = () => {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+type MaskedInputProps = {
+  value: string;
+  onChangeText: (text: string) => void;
+  mask: 'phone' | 'creditcard' | 'social';
+  maskCharacter?: string;
+  maskDisplay?: boolean;
+};
 
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      const { key } = event;
+const getMaskByType = (type: string): string => {
+  switch (type) {
+    case 'phone':
+      return '(999) 999-9999';
+    case 'creditcard':
+      return '9999 9999 9999 9999';
+    case 'social':
+      return '999-99-9999';
+    default:
+      return '';
+  }
+};
 
-      switch (key) {
-        case 'ArrowUp':
-          setPosition((prevPosition) => ({
-            x: prevPosition.x,
-            y: prevPosition.y - 10,
-          }));
-          break;
-        case 'ArrowDown':
-          setPosition((prevPosition) => ({
-            x: prevPosition.x,
-            y: prevPosition.y + 10,
-          }));
-          break;
-        case 'ArrowLeft':
-          setPosition((prevPosition) => ({
-            x: prevPosition.x - 10,
-            y: prevPosition.y,
-          }));
-          break;
-        case 'ArrowRight':
-          setPosition((prevPosition) => ({
-            x: prevPosition.x + 10,
-            y: prevPosition.y,
-          }));
-          break;
-        default:
-          break;
+const MaskedInput = ({
+  value,
+  onChangeText,
+  mask,
+  maskCharacter = '*',
+  maskDisplay = true,
+}: MaskedInputProps) => {
+  const [showValue, setShowValue] = useState(false);
+
+  const applyMask = (text: string) => {
+    // Remove any non-digit characters from the text
+    const cleanedText = text.replace(/\D/g, '');
+
+    let maskedText = '';
+    let index = 0;
+
+    // Apply the mask pattern to the cleaned text
+    for (let i = 0; i < mask.length; i++) {
+      const maskChar = mask[i];
+
+      if (maskChar === '9') {
+        if (index < cleanedText.length) {
+          maskedText += cleanedText[index];
+          index++;
+        } else {
+          break; // Stop applying mask if there are no more characters
+        }
+      } else {
+        maskedText += maskChar;
       }
-    };
+    }
 
-    window.addEventListener('keydown', handleKeyDown);
+    // Replace any remaining mask characters with the specified mask character
+    maskedText = maskedText.replace(/[^0-9]/g, maskCharacter);
 
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
+    return maskedText;
+  };
+
+  const handleChangeText = (text: string) => {
+    const maskedText = applyMask(text);
+    onChangeText(maskedText);
+  };
+
+  const toggleShowValue = () => {
+    setShowValue((prevShowValue) => !prevShowValue);
+  };
+
+  const displayValue = maskDisplay && !showValue ? applyMask(value) : value;
+  const maskPattern = getMaskByType(mask);
 
   return (
-    <View style={[styles.box, { top: position.y, left: position.x }]} />
+    <View style={styles.container}>
+      <TextInput
+        style={styles.input}
+        value={displayValue}
+        onChangeText={handleChangeText}
+        placeholder={maskPattern}
+      />
+      {(mask === 'creditcard' || mask === 'social') && (
+        <TouchableOpacity
+          style={styles.iconContainer}
+          onPress={toggleShowValue}
+        >
+          <Ionicons
+            name={showValue ? 'eye-off-outline' : 'eye-outline'}
+            size={24}
+            color="gray"
+          />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  box: {
-    width: 50,
-    height: 50,
-    backgroundColor: 'red',
-    position: 'absolute',
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  input: {
+    flex: 1,
+    padding: 10,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: 'gray',
+    borderRadius: 4,
+  },
+  iconContainer: {
+    padding: 10,
   },
 });
 
-export default MoveableBox;
+export default MaskedInput;
